@@ -7,7 +7,8 @@
     "node": ">=8.0.0"
   },
   "scripts": {
-    "test": "node_modules/.bin/mocha --reporter spec"
+    "test": "node_modules/.bin/mocha --reporter spec",
+    "cover": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec test/*"
   },
   "repository": {
     "type": "git",
@@ -24,6 +25,8 @@
   "homepage": "https://github.com/paulallen87/chaturbate-browser#readme",
   "devDependencies": {
     "chai": "^4.0.2",
+    "coveralls": "^2.13.1",
+    "istanbul": "^1.1.0-alpha.1",
     "mocha": "^3.4.2"
   },
   "dependencies": {
