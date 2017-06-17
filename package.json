@@ -1,6 +1,6 @@
 {
   "name": "@paulallen87/chaturbate-browser",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Headless browser for interacting with Chaturbate",
   "main": "index.js",
   "engines": {

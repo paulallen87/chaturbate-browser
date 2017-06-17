@@ -1,6 +1,6 @@
 #/bin/bash
 
-VERSION="$(npm info . version)"
+VERSION="$(node -p "require('./package.json').version")"
 COMMENT=
 
 git add . || exit 1
