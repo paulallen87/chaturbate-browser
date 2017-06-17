@@ -1,6 +1,6 @@
 'use strict';
 
-const debug = require('debug')('chaturbate-browser');
+const debug = require('debug')('chaturbate:browser');
 const EventEmitter = require('events').EventEmitter;
 const chromeLauncher = require('lighthouse/chrome-launcher/chrome-launcher');
 const CDP = require('chrome-remote-interface');
@@ -195,7 +195,7 @@ class ChaturbateBrowser extends EventEmitter {
    * @param {Object} params
    */
   _onChildInserted(params) {
-    debug(`onChildInserted: ${params}`);
+    debug(`onChildInserted: ${params.node.nodeId}`);
 
     this.queue.push({
       nodeId: params.node.nodeId,
@@ -224,16 +224,20 @@ class ChaturbateBrowser extends EventEmitter {
 
     const child = this.queue.pop(0);
 
-    const html = await child.promise;
+    try {
+      const html = await child.promise;
 
-    this.emit('child_inserted', {
-      nodeId: child.nodeId,
-      parentNodeId: child.parentNodeId,
-      previousNodeId: child.previousNodeId,
-      html: html.outerHTML
-    })
-
-    this._next();
+      this.emit('child_inserted', {
+        nodeId: child.nodeId,
+        parentNodeId: child.parentNodeId,
+        previousNodeId: child.previousNodeId,
+        html: html.outerHTML
+      })
+    } catch(e) {
+      debug(`failed to retrieve html for node ${child.nodeId}`);
+    } finally {
+      this._next();
+    } 
   }
   
 }
