@@ -1,6 +1,9 @@
 Chaturbate Browser
 =========
 
+![build status](https://travis-ci.org/paulallen87/chaturbate-browser.svg?branch=master)
+![coverage status](https://coveralls.io/repos/github/paulallen87/chaturbate-browser/badge.svg?branch=master)
+
 A wrapper around a headless Chrome instance that allows for interacting with a Chaturbate.com profile.
 
 ## Requirements
