@@ -7,7 +7,7 @@ Chaturbate Browser
 ![dev dependencies](https://img.shields.io/david/dev/paulallen87/chaturbate-browser.svg)
 ![npm version](https://img.shields.io/npm/v/@paulallen87/chaturbate-browser.svg)
 
-A wrapper around a headless Chrome instance that allows for interacting with a Chaturbate.com profile.
+A wrapper around a headless Chrome instance that intercepts WebSocket messages from Chaturbate.
 
 ## Requirements
 
@@ -24,14 +24,18 @@ npm install @paulallen87/chaturbate-browser
 ```javascript
 cb = new ChaturbateBrowser();
 
-cb.on('page_load', async () => {
-  // needed for 'child_inserted' events
-  await cb.querySelector('.chat-list');
-})
+cb.on('init', (e) => {
+  console.dir(e.settings);
+  console.dir(e.chatSettings);
+  console.log(e.csrftoken);
+  console.log(e.hasWebsocket);
+});
 
-cb.on('child_inserted', (e) => {
-  console.log(e.html);
-})
+cb.on('message', (e) => {
+  console.log(e.timestamp);
+  console.log(e.method);
+  console.dir(e.args);
+});
 
 await cb.start();
 

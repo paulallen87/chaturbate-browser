@@ -1,11 +1,14 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
 const debug = require('debug')('chaturbate:browser');
 const EventEmitter = require('events').EventEmitter;
 const chromeLauncher = require('lighthouse/chrome-launcher/chrome-launcher');
 const CDP = require('chrome-remote-interface');
 
 const SERVER_URL = 'https://chaturbate.com';
+const PATCH_PREFIX = '##PATCH--';
 
 /**
  * Browser wrapper for interacting with Chaturbate.
@@ -24,8 +27,6 @@ class ChaturbateBrowser extends EventEmitter {
     this.port = port;
     this.chrome = null;
     this.protocol = null;
-    this.documentNode = null;
-    this.queue = [];
   }
 
   /**
@@ -99,13 +100,12 @@ class ChaturbateBrowser extends EventEmitter {
     debug('enabling debugging domains...');
     await [
       this.protocol.Page.enable(),
-      this.protocol.DOM.enable(),
-      this.protocol.Network.enable()
+      this.protocol.Runtime.enable()
     ];
 
     debug('adding event listeners...');
     this.protocol.Page.loadEventFired(() => this._onPageLoad());
-    this.protocol.DOM.childNodeInserted((params) => this._onChildInserted(params));   
+    this.protocol.Runtime.consoleAPICalled((params) => this._onConsoleAPICalled(params))
   }
 
   /**
@@ -118,40 +118,6 @@ class ChaturbateBrowser extends EventEmitter {
     this.protocol.Page.navigate({
       url: `${this.server}/${username}/`
     }); 
-  }
-
-  /**
-   * Returns a NodeID from a QuerySelector.
-   * 
-   * @param {string} selector
-   * @return {number}
-   */
-  async querySelector(selector) {
-    const result = await this.protocol.DOM.querySelector({
-        nodeId: this.documentNode.root.nodeId,
-        selector: selector
-    });
-
-    debug(`selector '${selector}' returned node ${result.nodeId}`)
-
-    return result.nodeId;
-  }
-
-  /**
-   * Returns multiple NodeIDs from a QuerySelector.
-   * 
-   * @param {string} selector
-   * @return {Array<number>}
-   */
-  async querySelectorAll(selector) {
-    const result = await this.protocol.DOM.querySelectorAll({
-        nodeId: this.documentNode.root.nodeId,
-        selector: selector
-    });
-
-    debug(`selector '${selector}' returned nodes ${result.nodeIds}`)
-
-    return result.nodeIds;
   }
 
   /**
@@ -169,9 +135,6 @@ class ChaturbateBrowser extends EventEmitter {
       this.chrome.kill();
       this.chrome = null;
     }
-
-    this.queue.length = 0;
-    this.documentNode = null;
   }
 
   /**
@@ -180,66 +143,117 @@ class ChaturbateBrowser extends EventEmitter {
   async _onPageLoad() {
     debug('onPageLoad');
 
-    this.documentNode = await this.protocol.DOM.getDocument();
-    debug(`document node retrieved: ${this.documentNode.root.nodeId}`);
+    this._insertPatch();
+    debug(`patch inserted`);
 
-    this.emit('page_load', {
-      dom: this.protocol.DOM,
-      documentNodeId: this.documentNode.root.nodeI
-    });
+    this.emit('page_load');
   }
 
   /**
-   * Called when a new child is inserted into the page.
+   * Called when a console message is intercepted.
    * 
    * @param {Object} params
    */
-  _onChildInserted(params) {
-    debug(`onChildInserted: ${params.node.nodeId}`);
+  _onConsoleAPICalled(params) {
+    if (params.type.toUpperCase() != 'DEBUG') return;
+    if (params.args.length != 1) return;
 
-    this.queue.push({
-      nodeId: params.node.nodeId,
-      parentNodeId: params.parentNodeId,
-      previousNodeId: params.previousNodeId,
-      promise: this.protocol.DOM.getOuterHTML({nodeId: params.node.nodeId})
-    });
+    const arg = params.args[0].value;
+    if (!arg.startsWith(PATCH_PREFIX)) return;
 
-    this._next();
+    const json = arg.slice(PATCH_PREFIX.length);
+    const message = JSON.parse(json);
+    this._onPatchedMessage(message);
   }
 
-  /**
-   * Attempts to process the next item in the queue.
-   */
-  _next() {
-    if (!this.queue.length) return;
-
-    setTimeout(() => this._processQueue(), 1);
+  _onPatchedMessage(message) {
+    debug(`received patch message: ${message.type}`)
+    switch (message.type) {
+      case 'init':
+        this._onPatchInit(message.payload);
+        return;
+      case 'websocket_open':
+        this._onWebsocketOpen();
+        return;
+      case 'websocket_message':
+        this._onWebsocketMessage(message.payload);
+        return;
+      case 'websocket_error':
+        this._onWebsocketError(message.payload);
+        return;
+      case 'websocket_close':
+        this._onWebsocketClose(message.payload);
+        return;
+      default:
+        debug('unknown patch message');
+    }
   }
 
-  /**
-   * Processes the next item in the queue.
-   */
-  async _processQueue() {
-    debug(`processQueue: ${this.queue.length}`);
+  _onPatchInit(payload) {
+    debug(`patch initialized`);
 
-    const child = this.queue.pop(0);
-
-    try {
-      const html = await child.promise;
-
-      this.emit('child_inserted', {
-        nodeId: child.nodeId,
-        parentNodeId: child.parentNodeId,
-        previousNodeId: child.previousNodeId,
-        html: html.outerHTML
-      })
-    } catch(e) {
-      debug(`failed to retrieve html for node ${child.nodeId}`);
-    } finally {
-      this._next();
-    } 
+    this.emit('init', {
+      settings: JSON.parse(payload.settings),
+      chatSettings: JSON.parse(payload.chatSettings),
+      csrftoken: payload.csrftoken,
+      hasWebsocket: payload.hasWebsocket
+    })
   }
-  
+
+  _onWebsocketOpen() {
+    this.emit('connecting');
+  }
+
+  _onWebsocketMessage(payload) {
+    if (payload.type != 'message') return;
+
+    const data = JSON.parse(payload.data);
+    debug(`websocket event message received`);
+
+    this.emit('message', {
+      timestamp: payload.timestamp,
+      method: data.method,
+      args: data.args.map((arg) => this._parseArg(arg))
+    })
+  }
+
+  _onWebsocketError(err) {
+    this.emit('error', err);
+  }
+
+  _onWebsocketClose(event) {
+    this.emit('disconnected', event);
+  }
+
+  _parseArg(arg) {
+    if (arg == 'true' || arg == 'false') {
+      return arg == 'true';
+    }
+
+    if (!isNaN(arg) && arg != "") {
+      return Number(arg);
+    }
+
+    if (arg.startsWith('{')) {
+      return JSON.parse(arg);
+    }
+
+    return arg;
+  }
+
+  async _insertPatch() {
+    const normalizedPath = path.join(__dirname, 'patch.js');
+    const patch = fs.readFileSync(normalizedPath, 'utf8').replace('<PATCH_PREFIX>', PATCH_PREFIX)
+
+    debug(`inserting patch: ${patch}`);
+    const result = await this.protocol.Runtime.evaluate({expression: patch})
+
+    if (result.exceptionDetails) {
+      debug('patch failed')
+      debug(result.exceptionDetails)
+    }
+  }
+
 }
 
 module.exports = ChaturbateBrowser;
