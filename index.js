@@ -21,7 +21,7 @@ class ChaturbateBrowser extends EventEmitter {
    * @param {string} server
    * @param {number} port
    */
-  constructor(server=SERVER_URL, port=9222) {
+  constructor(server=SERVER_URL, port=undefined) {
     super();
     this.server = server;
     this.port = port;
@@ -201,7 +201,7 @@ class ChaturbateBrowser extends EventEmitter {
   }
 
   _onWebsocketOpen() {
-    this.emit('connecting');
+    this.emit('open');
   }
 
   _onWebsocketMessage(payload) {
