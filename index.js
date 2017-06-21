@@ -195,6 +195,7 @@ class ChaturbateBrowser extends EventEmitter {
     this.emit('init', {
       settings: JSON.parse(payload.settings),
       chatSettings: JSON.parse(payload.chatSettings),
+      initializerSettings: JSON.parse(payload.initializerSettings),
       csrftoken: payload.csrftoken,
       hasWebsocket: payload.hasWebsocket
     })
@@ -213,6 +214,7 @@ class ChaturbateBrowser extends EventEmitter {
     this.emit('message', {
       timestamp: payload.timestamp,
       method: data.method,
+      callback: data.callback,
       args: data.args.map((arg) => this._parseArg(arg))
     })
   }
@@ -222,7 +224,7 @@ class ChaturbateBrowser extends EventEmitter {
   }
 
   _onWebsocketClose(event) {
-    this.emit('disconnected', event);
+    this.emit('close', event);
   }
 
   _parseArg(arg) {
@@ -251,6 +253,26 @@ class ChaturbateBrowser extends EventEmitter {
     if (result.exceptionDetails) {
       debug('patch failed')
       debug(result.exceptionDetails)
+    }
+  }
+
+  async fetch(url) {
+    debug(`making fetch call to: ${url}`);
+    const timestamp = (new Date()).getTime();
+    const expression = `fetch('${url}?_=${timestamp}').then((r) => r.text())`;
+    const response = await this.protocol.Runtime.evaluate({
+      expression: expression,
+      awaitPromise: true
+    });
+
+    if (response.exceptionDetails) {
+      debug('fetch call failed')
+      debug(response.exceptionDetails)
+      return null;
+    }
+
+    if (response.result) {
+      return response.result.value;
     }
   }
 

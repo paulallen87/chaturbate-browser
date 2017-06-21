@@ -39,11 +39,17 @@ if (ws_handler.ws_socket) {
   };
 }
 
-window.__patch_reply('init', {
-  'settings': JSON.stringify(window.defchat_settings.handler, window.__patch_replacer),
-  'chatSettings': JSON.stringify(window.defchat_settings, window.__patch_replacer),
-  'csrftoken': $.cookie('csrftoken'),
-  'hasWebsocket': !!ws_handler.ws_socket
-});
+window.__patch_settings = () => {
+  const settings = window.defchat_settings;
+  const handler = window.defchat_settings.handler;
+  const initializer = window.defchat_settings.handler.initializer;
+  return {
+    'settings': JSON.stringify(handler, window.__patch_replacer),
+    'chatSettings': JSON.stringify(settings, window.__patch_replacer),
+    'initializerSettings': JSON.stringify(initializer, window.__patch_replacer),
+    'csrftoken': $.cookie('csrftoken'),
+    'hasWebsocket': !!ws_handler.ws_socket
+  }
+}
 
-ws_handler.ws_socket
+window.__patch_reply('init', window.__patch_settings());
