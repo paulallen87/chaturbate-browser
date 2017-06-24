@@ -470,12 +470,13 @@ class ChaturbateBrowser extends EventEmitter {
    * @param {Object} params 
    * @return {*}
    */
-  async fetch(url, params={}) {
+  async fetch(url, params={}, options) {
     debug(`making fetch call to: ${url}`);
     const qs = querystring.stringify(params);
-    const expression =
-        `fetch('${url}?${qs}', {credentials: 'include'})` +
-        '.then((r) => r.text())';
+    const opts = JSON.stringify(options || {
+      credentials: credentials
+    });
+    const expression = `fetch('${url}?${qs}', ${opts}).then((r) => r.text())`;
 
     return await this.evaluate(expression, true, false);
   }
