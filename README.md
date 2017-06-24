@@ -43,7 +43,7 @@ cb.on('message', (e) => {
 
 await cb.start();
 
-cb.navigate(username);
+cb.profile(username);
 
 setTimeout(() => cb.stop(), 10 * 1000);
 ```
@@ -57,11 +57,11 @@ setTimeout(() => cb.stop(), 10 * 1000);
   await cb.start();
   ```
 
-  ### **navigate**
-  Navigates the browser to a specific page.
+  ### **profile**
+  Navigates the browser to a specific profile page.
 
   ```javascript
-  cb.navigate('my username');
+  cb.profile('my username');
   ```
 
   ### **stop**
@@ -78,14 +78,85 @@ setTimeout(() => cb.stop(), 10 * 1000);
   const result = await cb.fetch('/some/url');
   ```
 
+  ### **wait**
+  Perform an action (form submittion) and wait for page to load.
+
+  ```javascript
+  await cb.wait(async () => {
+    await cb.evaluate('document.querySelector(\'form\').submit()')
+  });
+  ```
+  
+  ### **goto**
+  Navigate to a specific page.
+
+  ```javascript
+  await cb.goto('http://www.google.com');
+  ```
+
+  ### **cookies**
+  Get a list of cookies.
+
+  ```javascript
+  const cookies = await cb.cookies();
+  ```
+
+  ### **session**
+  Check if a login session exists.
+
+  ```javascript
+  const loggedIn = await cb.session();
+  ```
+
+  ### **login**
+  Login and create a session.
+
+  ```javascript
+  await cb.login('username', 'password');
+  ```
+
+  ### **purchase**
+  Request a token purchase with BitCoin.
+
+  ```javascript
+  const result = await cb.putchase(100);
+  console.log(`amount to send: ${result.amount}`)
+  console.log(`send to: ${result.address}`)
+  ```
+
+  ### **evaluate**
+  Run a script.
+
+  ```javascript
+  const result = await cb.evaluate('document.querySelector(\/title\/).innerText');
+  ```
+
 ## Events
 
-  ### **page_load**
+  ### **login**
+  Called after a login.
+
+  ```javascript
+  cb.on('login', (username) => {
+    console.log(`logged in as '${username}'`);
+  });
+  ```
+
+  ### **profile**
   Called after a page has loaded.
 
   ```javascript
-  cb.on('page_load', () => {
-    console.log('page laoded');
+  cb.on('profile', () => {
+    console.log(`profile loaded for '${username}'`);
+  });
+  ```
+
+  ### **profile**
+  Called after a purchase has been setup.
+
+  ```javascript
+  cb.on('purchase', (e) => {
+    console.log(`send '${e.amount}' to '${e.address}'`);
   });
   ```
 
