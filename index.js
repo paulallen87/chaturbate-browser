@@ -11,6 +11,12 @@ const CDP = require('chrome-remote-interface');
 const SERVER_URL = 'https://chaturbate.com';
 const PROFILE_PATCH_PREFIX = '##PROFILE--';
 
+const DEFAULT_CONFIG = {
+  server: SERVER_URL,
+  port: undefined,
+  proxyServer: undefined
+};
+
 const CHROME_FLAGS = [
   '--new',
   '--args',
@@ -67,15 +73,12 @@ class ChaturbateBrowser extends EventEmitter {
   /**
    * Constructor.
    *
-   * @param {string} server
-   * @param {?number} port
-   * @param {?string} proxy
+   * @param {Object} config
    */
-  constructor(server=SERVER_URL, port=undefined, proxy=undefined) {
+  constructor(config={}) {
     super();
-    this.server = server;
-    this.port = port;
-    this.proxy = proxy;
+
+    this.config = Object.assign({}, DEFAULT_CONFIG, config);
     this.chrome = null;
     this.protocol = null;
   }
@@ -88,13 +91,13 @@ class ChaturbateBrowser extends EventEmitter {
   async _launchChrome() {
     const chromeFlags = CHROME_FLAGS.slice();
 
-    if (this.proxy) {
-      chromeFlags.push(`--proxy-server=${this.proxy}`)
-      chromeFlags.push('--host-resolver-rules="MAP * 0.0.0.0"')
+    if (this.config.proxyServer) {
+      flags.push(`--proxy-server=${this.config.proxyServer}`)
+      flags.push('--host-resolver-rules="MAP * 0.0.0.0, EXCLUDE localhost"')
     }
 
     return await chromeLauncher.launch({
-      port: this.port,
+      port: this.config.port,
       chromeFlags: chromeFlags
     });
   }
@@ -148,7 +151,7 @@ class ChaturbateBrowser extends EventEmitter {
   async goto(url) {
     return await this.wait(async () => {
       return await this.protocol.Page.navigate({
-        url: `${this.server}/${url}`
+        url: `${this.config.server}/${url}`
       });
     })
   }
@@ -326,7 +329,7 @@ class ChaturbateBrowser extends EventEmitter {
         this._onProfileWebsocketClose(message.payload);
         return;
       default:
-        debug('unknown patch message');
+        debug('unknown profile message');
     }
   }
 
@@ -474,7 +477,7 @@ class ChaturbateBrowser extends EventEmitter {
     debug(`making fetch call to: ${url}`);
     const qs = querystring.stringify(params);
     const opts = JSON.stringify(options || {
-      credentials: credentials
+      credentials: 'include'
     });
     const expression = `fetch('${url}?${qs}', ${opts}).then((r) => r.text())`;
 
