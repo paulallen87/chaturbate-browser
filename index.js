@@ -424,7 +424,7 @@ class ChaturbateBrowser extends EventEmitter {
    * @param {boolean} returnByValue 
    * @return {*}
    */
-  async evaluate(script, awaitPromise=false, returnByValue=false) {
+  async evaluate(script, awaitPromise=false, returnByValue=true) {
     debug(`evaluating script: \n${script}`);
     const response = await this.protocol.Runtime.evaluate({
       expression: script,
@@ -463,7 +463,7 @@ class ChaturbateBrowser extends EventEmitter {
       });
     }
 
-    return await this.evaluate(script, false, true);
+    return await this.evaluate(script);
   }
 
   /**
@@ -481,7 +481,7 @@ class ChaturbateBrowser extends EventEmitter {
     });
     const expression = `fetch('${url}?${qs}', ${opts}).then((r) => r.text())`;
 
-    return await this.evaluate(expression, true, false);
+    return await this.evaluate(expression, true);
   }
 
 }

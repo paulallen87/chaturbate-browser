@@ -56,12 +56,14 @@
 
   reply('init', getSettings());
 
-  player.src = '';
-  player.pause();
-  player.dispose();
-  player.pause = () => undefined;
-  player.play = () => undefined;
-  player.src = () => undefined;
-  player.currentTime = () => new Date().getTime() / 1000.0;
+  if (player) {
+    player.src = '';
+    player.pause();
+    player.dispose();
+    player.pause = () => undefined;
+    player.play = () => undefined;
+    player.src = () => undefined;
+    player.currentTime = () => new Date().getTime() / 1000.0;
+  }
 
 })(window.ws_handler, window.defchat_settings, window.jsplayer);
