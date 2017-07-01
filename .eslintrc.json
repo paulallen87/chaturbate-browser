@@ -1,0 +1,25 @@
+{
+  "extends": [
+    "eslint:recommended",
+    "google",
+    "plugin:node/recommended"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 2017
+  },
+  "env": {
+    "node": true,
+    "es6": true,
+    "browser": true,
+    "mocha": true
+  },
+  "plugins": [
+    "node"
+  ],
+  "rules": {
+    "brace-style": "off",
+    "no-var": "off",
+    "require-jsdoc": "off",
+    "node/exports-style": ["error", "module.exports"]
+  }
+}

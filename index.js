@@ -6,7 +6,10 @@ const querystring = require('querystring');
 const debug = require('debug')('chaturbate:browser');
 const EventEmitter = require('events').EventEmitter;
 const chromeLauncher = require('lighthouse/chrome-launcher/chrome-launcher');
-const CDP = require('chrome-remote-interface');
+const chromeRemoteInterface = require('chrome-remote-interface');
+const {Console} = require('console');
+
+const logging = new Console(process.stdout, process.stderr);
 
 const SERVER_URL = 'https://chaturbate.com';
 const PROFILE_PATCH_PREFIX = '##PROFILE--';
@@ -14,7 +17,7 @@ const PROFILE_PATCH_PREFIX = '##PROFILE--';
 const DEFAULT_CONFIG = {
   server: SERVER_URL,
   port: undefined,
-  proxyServer: undefined
+  proxyServer: undefined,
 };
 
 const CHROME_FLAGS = [
@@ -62,18 +65,19 @@ const CHROME_FLAGS = [
   '--safe-plugins',
   '--disable-gpu',
   '--mute-audio',
-  '--headless'
-]
+  '--headless',
+];
 
 /**
  * Browser wrapper for interacting with Chaturbate.
  */
 class ChaturbateBrowser extends EventEmitter {
-
   /**
    * Constructor.
    *
    * @param {Object} config
+   * @extends EventEmitter
+   * @constructor
    */
   constructor(config={}) {
     super();
@@ -87,18 +91,19 @@ class ChaturbateBrowser extends EventEmitter {
    * Launches the Chrome web browser.
    *
    * @return {Object} The chrome object that represents the browser process.
+   * @private
    */
   async _launchChrome() {
-    const chromeFlags = CHROME_FLAGS.slice();
+    const flags = CHROME_FLAGS.slice();
 
     if (this.config.proxyServer) {
-      flags.push(`--proxy-server=${this.config.proxyServer}`)
-      flags.push('--host-resolver-rules="MAP * 0.0.0.0, EXCLUDE localhost"')
+      flags.push(`--proxy-server=${this.config.proxyServer}`);
+      flags.push('--host-resolver-rules="MAP * 0.0.0.0, EXCLUDE localhost"');
     }
 
     return await chromeLauncher.launch({
       port: this.config.port,
-      chromeFlags: chromeFlags
+      chromeFlags: flags,
     });
   }
 
@@ -110,20 +115,20 @@ class ChaturbateBrowser extends EventEmitter {
     this.chrome = await this._launchChrome();
 
     debug('starting remote debugging...');
-    this.protocol = await CDP({port: this.chrome.port});
+    this.protocol = await chromeRemoteInterface({port: this.chrome.port});
 
     debug('enabling debugging domains...');
     await [
       this.protocol.Page.enable(),
       this.protocol.Runtime.enable(),
-      this.protocol.Network.enable()
+      this.protocol.Network.enable(),
     ];
 
     debug('adding event listeners...');
     this.protocol.Page.loadEventFired(() => this._onPageLoad());
     this.protocol.Runtime.consoleAPICalled((params) => {
       return this._onConsoleAPICalled(params);
-    })
+    });
   }
 
   /**
@@ -135,7 +140,7 @@ class ChaturbateBrowser extends EventEmitter {
   async wait(cb) {
     const pagePromise = this._getPageLoadPromise();
 
-    const result = await cb.call(this)
+    const result = await cb.call(this);
 
     await Promise.resolve(pagePromise);
 
@@ -149,11 +154,11 @@ class ChaturbateBrowser extends EventEmitter {
    * @return {*}
    */
   async goto(url) {
-    return await this.wait(async () => {
+    return await this.wait(async() => {
       return await this.protocol.Page.navigate({
-        url: `${this.config.server}/${url}`
+        url: `${this.config.server}/${url}`,
       });
-    })
+    });
   }
 
   /**
@@ -174,7 +179,7 @@ class ChaturbateBrowser extends EventEmitter {
   async session() {
     const cookies = await this.cookies();
     const sessionCookie = cookies.find((c) => {
-      return c.name = 'sessionid' && c.session && !!c.value;;
+      return c.name = 'sessionid' && c.session && !!c.value;
     });
     return !!sessionCookie;
   }
@@ -189,23 +194,23 @@ class ChaturbateBrowser extends EventEmitter {
   async login(username, password) {
     debug(`logging in as '${username}'...`);
 
-    await this.goto('auth/login/')
+    await this.goto('auth/login/');
 
-    await this.wait(async () => {
+    await this.wait(async() => {
       await this._evaluateScript('login', {
         'LOGIN_USERNAME': username,
-        'LOGIN_PASSWORD': password
+        'LOGIN_PASSWORD': password,
       });
-    })
+    });
 
     const session = await this.session();
 
     if (session) {
       debug(`logged in`);
-      this.emit('login', username)
+      this.emit('login', username);
       return true;
     } else {
-      console.error('login failed');
+      logging.error('login failed');
       return false;
     }
   }
@@ -221,11 +226,11 @@ class ChaturbateBrowser extends EventEmitter {
 
     await this.goto('tipping/purchase_tokens/');
 
-    await this.wait(async () => {
+    await this.wait(async() => {
       await this._evaluateScript('payment', {
-        'PAYMENT_AMOUNT': amount
+        'PAYMENT_AMOUNT': amount,
       });
-    })
+    });
 
     const results = await this._evaluateScript('bitcoin');
 
@@ -245,7 +250,7 @@ class ChaturbateBrowser extends EventEmitter {
     await this.goto(`${username}/`);
 
     await this._evaluateScript('profile', {
-      'PATCH_PREFIX': PROFILE_PATCH_PREFIX
+      'PATCH_PREFIX': PROFILE_PATCH_PREFIX,
     });
 
     this.emit('profile', username);
@@ -272,6 +277,7 @@ class ChaturbateBrowser extends EventEmitter {
    * Creates a promise for the next page load.
    * 
    * @return {Promise}
+   * @private
    */
   _getPageLoadPromise() {
     return new Promise((resolve, reject) => {
@@ -281,6 +287,8 @@ class ChaturbateBrowser extends EventEmitter {
 
   /**
    * Called when the browser successfully loads a page.
+   * 
+   * @private
    */
   async _onPageLoad() {
     debug('onPageLoad');
@@ -292,6 +300,7 @@ class ChaturbateBrowser extends EventEmitter {
    * Called when a console message is intercepted.
    * 
    * @param {Object} params
+   * @private
    */
   _onConsoleAPICalled(params) {
     if (params.type.toUpperCase() != 'DEBUG') return;
@@ -309,9 +318,10 @@ class ChaturbateBrowser extends EventEmitter {
    * Called when a message is received.
    *
    * @param {Object} message 
+   * @private
    */
   _onProfileMessage(message) {
-    debug(`received profile message: ${message.type}`)
+    debug(`received profile message: ${message.type}`);
     switch (message.type) {
       case 'init':
         this._onProfileInit(message.payload);
@@ -337,6 +347,7 @@ class ChaturbateBrowser extends EventEmitter {
    * Called when the profile patch is initialized.
    *
    * @param {Object} payload 
+   * @private
    */
   _onProfileInit(payload) {
     debug(`profile initialized`);
@@ -346,12 +357,14 @@ class ChaturbateBrowser extends EventEmitter {
       chatSettings: JSON.parse(payload.chatSettings),
       initializerSettings: JSON.parse(payload.initializerSettings),
       csrftoken: payload.csrftoken,
-      hasWebsocket: payload.hasWebsocket
-    })
+      hasWebsocket: payload.hasWebsocket,
+    });
   }
 
   /**
    * Called when the profile websocket is opened.
+   * 
+   * @private
    */
   _onProfileWebsocketOpen() {
     this.emit('open');
@@ -359,7 +372,9 @@ class ChaturbateBrowser extends EventEmitter {
 
   /**
    * Called when the profile websocket receives a message.
+   *
    * @param {Object} payload 
+   * @private
    */
   _onProfileWebsocketMessage(payload) {
     if (payload.type != 'message') return;
@@ -371,14 +386,15 @@ class ChaturbateBrowser extends EventEmitter {
       timestamp: payload.timestamp,
       method: data.method,
       callback: data.callback,
-      args: data.args.map((arg) => this._parseArg(arg))
-    })
+      args: data.args.map((arg) => this._parseArg(arg)),
+    });
   }
 
   /**
    * Called when the profile websocket receives an error.
    *
    * @param {Error} err 
+   * @private
    */
   _onProfileWebsocketError(err) {
     this.emit('error', err);
@@ -388,6 +404,7 @@ class ChaturbateBrowser extends EventEmitter {
    * Called when the profile websocket is closed.
    * 
    * @param {Event} event
+   * @private
    */
   _onProfileWebsocketClose(event) {
     this.emit('close', event);
@@ -399,13 +416,14 @@ class ChaturbateBrowser extends EventEmitter {
    *
    * @param {string} arg 
    * @return {*}
+   * @private
    */
   _parseArg(arg) {
     if (arg == 'true' || arg == 'false') {
       return arg == 'true';
     }
 
-    if (!isNaN(arg) && arg != "") {
+    if (!isNaN(arg) && arg != '') {
       return Number(arg);
     }
 
@@ -429,8 +447,8 @@ class ChaturbateBrowser extends EventEmitter {
     const response = await this.protocol.Runtime.evaluate({
       expression: script,
       awaitPromise: awaitPromise,
-      returnByValue: returnByValue
-    })
+      returnByValue: returnByValue,
+    });
 
     if (response.exceptionDetails) {
       debug('script failed');
@@ -439,7 +457,7 @@ class ChaturbateBrowser extends EventEmitter {
     }
 
     if (response.result) {
-      debug(response.result.value)
+      debug(response.result.value);
       return response.result.value;
     }
   }
@@ -450,11 +468,12 @@ class ChaturbateBrowser extends EventEmitter {
    * @param {string} name 
    * @param {Object} params 
    * @return {*}
+   * @private
    */
   async _evaluateScript(name, params=undefined) {
     debug(`inserting script: ${name}`);
     const normalizedPath = path.join(__dirname, `scripts/${name}.js`);
-    
+
     let script = fs.readFileSync(normalizedPath, 'utf8');
 
     if (params) {
@@ -471,19 +490,19 @@ class ChaturbateBrowser extends EventEmitter {
    *
    * @param {string} url 
    * @param {Object} params 
+   * @param {?Object} options
    * @return {*}
    */
   async fetch(url, params={}, options) {
     debug(`making fetch call to: ${url}`);
     const qs = querystring.stringify(params);
     const opts = JSON.stringify(options || {
-      credentials: 'include'
+      credentials: 'include',
     });
     const expression = `fetch('${url}?${qs}', ${opts}).then((r) => r.text())`;
 
     return await this.evaluate(expression, true);
   }
-
 }
 
 module.exports = ChaturbateBrowser;
