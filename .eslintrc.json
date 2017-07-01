@@ -17,9 +17,17 @@
     "node"
   ],
   "rules": {
-    "brace-style": "off",
-    "no-var": "off",
-    "require-jsdoc": "off",
+    "brace-style": 2,
+    "no-var": 2,
+    "valid-jsdoc": "error",
+    "require-jsdoc": ["error", {
+        "require": {
+            "FunctionDeclaration": true,
+            "MethodDefinition": true,
+            "ClassDeclaration": true,
+            "ArrowFunctionExpression": true
+        }
+    }],
     "node/exports-style": ["error", "module.exports"]
   }
 }
