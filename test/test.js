@@ -5,6 +5,6 @@ const ChaturbateBrowser = require('../index');
 
 describe('ChaturbateBrowser', () => {
   it('should be exported', () => {
-    expect(ChaturbateBrowser).to.notEqual(undefined);
+    expect(ChaturbateBrowser).to.not.equal(undefined);
   });
 });
