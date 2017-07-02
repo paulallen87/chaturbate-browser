@@ -85,6 +85,30 @@ const CHROME_FLAGS = [
 ];
 
 /**
+ * Parses Chaturbate websocket message arguments into native
+ * javascript objects.
+ *
+ * @param {string} arg 
+ * @return {*}
+ * @private
+ */
+const _parseArg = (arg) => {
+  if (arg === 'true' || arg === 'false') {
+    return arg === 'true';
+  }
+
+  if (!isNaN(arg) && arg !== '') {
+    return Number(arg);
+  }
+
+  if (arg.startsWith('{')) {
+    return JSON.parse(arg);
+  }
+
+  return arg;
+};
+
+/**
  * Browser wrapper for interacting with Chaturbate.
  */
 class ChaturbateBrowser extends EventEmitter {
@@ -405,7 +429,7 @@ class ChaturbateBrowser extends EventEmitter {
     debug(`websocket event message received`);
 
     this.emit('message', {
-      args: data.args.map((arg) => this._parseArg(arg)),
+      args: data.args.map((arg) => _parseArg(arg)),
       callback: data.callback,
       method: data.method,
       timestamp: payload.timestamp,
@@ -430,31 +454,6 @@ class ChaturbateBrowser extends EventEmitter {
    */
   _onProfileWebsocketClose(event) {
     this.emit('close', event);
-  }
-
-  /**
-   * Parses Chaturbate websocket message arguments into native
-   * javascript objects.
-   *
-   * @param {string} arg 
-   * @return {*}
-   * @private
-   * @static
-   */
-  static _parseArg(arg) {
-    if (arg === 'true' || arg === 'false') {
-      return arg === 'true';
-    }
-
-    if (!isNaN(arg) && arg !== '') {
-      return Number(arg);
-    }
-
-    if (arg.startsWith('{')) {
-      return JSON.parse(arg);
-    }
-
-    return arg;
   }
 
   /**
