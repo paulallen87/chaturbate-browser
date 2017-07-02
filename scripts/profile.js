@@ -1,3 +1,5 @@
+/* eslint strict: 0 */
+
 ((handler, settings, player) => {
   const PREFIX = '<PATCH_PREFIX>';
 
@@ -10,7 +12,7 @@
    */
   const replacer = (key, value) => {
     if (!key) return value;
-    if (typeof value == 'object') return undefined;
+    if (typeof value === 'object') return undefined;
     return value;
   };
 
@@ -20,11 +22,11 @@
    * @param {*} type 
    * @param {*} payload 
    */
-  const reply = (type, payload=null) => {
+  const reply = (type, payload = null) => {
     // eslint-disable-next-line no-console
     console.debug(PREFIX + JSON.stringify({
-      type: type,
       payload: payload,
+      type: type,
     }));
   };
 
@@ -37,12 +39,12 @@
     const handlerSettings = settings.handler;
     const initializerSettings = handlerSettings.initializer;
     return {
-      'settings': JSON.stringify(handlerSettings, replacer),
       'chatSettings': JSON.stringify(settings, replacer),
-      'initializerSettings': JSON.stringify(initializerSettings, replacer),
       // eslint-disable-next-line no-undef
       'csrftoken': $.cookie('csrftoken'),
-      'hasWebsocket': !!handler.ws_socket,
+      'hasWebsocket': Boolean(handler.ws_socket),
+      'initializerSettings': JSON.stringify(initializerSettings, replacer),
+      'settings': JSON.stringify(handlerSettings, replacer),
     };
   };
 
@@ -76,12 +78,14 @@
   reply('init', getSettings());
 
   if (player) {
+    const SEC_IN_MS = 1000.0;
+
     player.src = '';
     player.pause();
     player.dispose();
     player.pause = () => undefined;
     player.play = () => undefined;
     player.src = () => undefined;
-    player.currentTime = () => new Date().getTime() / 1000.0;
+    player.currentTime = () => new Date().getTime() / SEC_IN_MS;
   }
 })(window.ws_handler, window.defchat_settings, window.jsplayer);
