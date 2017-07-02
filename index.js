@@ -349,6 +349,8 @@ class ChaturbateBrowser extends EventEmitter {
     const EXPECTED_LENGTH = 1;
     const FIRST_ARG = 0;
 
+    debug(params);
+
     if (params.type.toUpperCase() !== 'DEBUG') return;
     if (params.args.length !== EXPECTED_LENGTH) return;
 
