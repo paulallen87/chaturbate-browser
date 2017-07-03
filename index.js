@@ -160,7 +160,7 @@ class ChaturbateBrowser extends EventEmitter {
 
     process.on('exit', () => this.stop());
     process.on('SIGTERM', () => this.stop());
-    process.on('uncaughtException', (e) => this.stop());
+    process.on('uncaughtException', (e) => this.stop(e));
 
     debug('enabling debugging domains...');
     await [
@@ -305,8 +305,15 @@ class ChaturbateBrowser extends EventEmitter {
 
   /**
    * Stops the remote dubugger and kills the Chrome process.
+   * 
+   * @param {Error=} e
    */
-  stop() {
+  stop(e) {
+    if (e) {
+      debug('Stopping because of error');
+      logging.error(e);
+    }
+
     if (this.protocol) {
       debug('stopping remote debugging...');
       this.protocol.close();
@@ -404,13 +411,17 @@ class ChaturbateBrowser extends EventEmitter {
   _onProfileInit(payload) {
     debug(`profile initialized`);
 
-    this.emit('init', {
+    const result = {
       chatSettings: JSON.parse(payload.chatSettings),
       csrftoken: payload.csrftoken,
       hasWebsocket: payload.hasWebsocket,
       initializerSettings: JSON.parse(payload.initializerSettings),
       settings: JSON.parse(payload.settings),
-    });
+    };
+
+    debug(result);
+
+    this.emit('init', result);
   }
 
   /**
