@@ -158,6 +158,10 @@ class ChaturbateBrowser extends EventEmitter {
     debug('starting remote debugging...');
     this.protocol = await chromeRemoteInterface({port: this.chrome.port});
 
+    process.on('exit', () => this.stop());
+    process.on('SIGTERM', () => this.stop());
+    process.on('uncaughtException', (e) => this.stop());
+
     debug('enabling debugging domains...');
     await [
       this.protocol.Page.enable(),
