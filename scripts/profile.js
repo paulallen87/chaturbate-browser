@@ -1,6 +1,6 @@
 /* eslint strict: 0, no-console: 0 */
 
-((handler, settings, jsplayer) => {
+((handler, defchatSettings, jsplayer) => {
   const PREFIX = '<PATCH_PREFIX>';
 
   /**
@@ -32,11 +32,13 @@
   /**
    * Collects common settings.
    * 
+   * @param {Object} settings
    * @return {Object}
    */
-  const getSettings = () => {
-    const handlerSettings = settings.handler;
-    const initializerSettings = handlerSettings.initializer;
+  const getSettings = (settings) => {
+    const chatSettings = settings || {};
+    const handlerSettings = chatSettings.handler || {};
+    const initializerSettings = handlerSettings.initializer || {};
     return {
       'chatSettings': JSON.stringify(settings, replacer),
       // eslint-disable-next-line no-undef
@@ -144,13 +146,15 @@
     }
   };
 
-  if (settings && settings.handler && settings.handler.room) {
+  if (defchatSettings &&
+      defchatSettings.handler &&
+      defchatSettings.handler.room) {
     disposePlayerOrRetry();
     hookSocketOrRetry();
   } else {
     console.debug('room is probably offline');
   }
 
-  reply('init', getSettings());
+  reply('init', getSettings(defchatSettings));
 
 })(window.ws_handler, window.defchat_settings, window.jsplayer);
