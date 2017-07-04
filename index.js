@@ -385,6 +385,9 @@ class ChaturbateBrowser extends EventEmitter {
       case 'init':
         this._onProfileInit(message.payload);
         return;
+      case 'websocket_hooked':
+        this._onProfileWebsocketHooked(message.payload);
+        return;
       case 'websocket_open':
         this._onProfileWebsocketOpen();
         return;
@@ -414,14 +417,40 @@ class ChaturbateBrowser extends EventEmitter {
     const result = {
       chatSettings: JSON.parse(payload.chatSettings),
       csrftoken: payload.csrftoken,
+      hasPlayer: payload.hasPlayer,
       hasWebsocket: payload.hasWebsocket,
       initializerSettings: JSON.parse(payload.initializerSettings),
+      room: payload.room,
       settings: JSON.parse(payload.settings),
     };
 
     debug(result);
 
     this.emit('init', result);
+  }
+
+  /**
+   * Called when the profile websocket is hooked.
+   *
+   * @param {Object} payload 
+   * @private
+   */
+  _onProfileWebsocketHooked(payload) {
+    debug(`websocket hook initialized`);
+
+    const result = {
+      chatSettings: JSON.parse(payload.chatSettings),
+      csrftoken: payload.csrftoken,
+      hasPlayer: payload.hasPlayer,
+      hasWebsocket: payload.hasWebsocket,
+      initializerSettings: JSON.parse(payload.initializerSettings),
+      room: payload.room,
+      settings: JSON.parse(payload.settings),
+    };
+
+    debug(result);
+
+    this.emit('hooked', result);
   }
 
   /**

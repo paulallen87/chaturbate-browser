@@ -1,6 +1,6 @@
 /* eslint strict: 0, no-console: 0 */
 
-((handler, defchatSettings, jsplayer) => {
+((w) => {
   const PREFIX = '<PATCH_PREFIX>';
 
   /**
@@ -30,21 +30,58 @@
   };
 
   /**
-   * Collects common settings.
-   * 
-   * @param {Object} settings
+   * Attempts to retrieve the websocket handler.
+   *
    * @return {Object}
    */
-  const getSettings = (settings) => {
-    const chatSettings = settings || {};
-    const handlerSettings = chatSettings.handler || {};
+  const getHandler = () => {
+    return (window.defchat_settings || {}).handler || window.ws_handler || {};
+  };
+
+  /**
+   * Returns a reference to the websocket.
+   * 
+   * @return {Object}
+   */
+  const getWebSocket = () => {
+    return getHandler().ws_socket;
+  };
+
+  /**
+   * Returns the room name.
+   * 
+   * @return {string}
+   */
+  const getRoomName = () => {
+    return getHandler().room;
+  };
+
+  /**
+   * Returns a reference to the video player.
+   * 
+   * @return {Object}
+   */
+  const getPlayer = () => {
+    return window.jsplayer;
+  };
+
+  /**
+   * Collects common settings.
+   * 
+   * @return {Object}
+   */
+  const getSettings = () => {
+    const settings = window.defchat_settings || {};
+    const handlerSettings = getHandler();
     const initializerSettings = handlerSettings.initializer || {};
     return {
       'chatSettings': JSON.stringify(settings, replacer),
       // eslint-disable-next-line no-undef
       'csrftoken': $.cookie('csrftoken'),
-      'hasWebsocket': Boolean(handler.ws_socket),
+      'hasPlayer': Boolean(getPlayer()),
+      'hasWebsocket': Boolean(getWebSocket()),
       'initializerSettings': JSON.stringify(initializerSettings, replacer),
+      'room': getRoomName(),
       'settings': JSON.stringify(handlerSettings, replacer),
     };
   };
@@ -52,10 +89,10 @@
   /**
    * Hooks the room's websocket.
    *
-   * @param {Object} socket
    * @return {boolean}
    */
-  const hookSocket = (socket) => {
+  const hookSocket = () => {
+    const socket = getWebSocket();
     if (socket) {
       const origOnMessage = socket.onmessage;
       const origOnError = socket.onerror;
@@ -82,6 +119,8 @@
         origOnOpen();
       };
 
+      reply('websocket_hooked', getSettings());
+
       return true;
     }
 
@@ -92,10 +131,10 @@
   /**
    * Disposes the video player.
    *
-   * @param {Object} player
    * @return {boolean}
    */
-  const disposePlayer = (player) => {
+  const disposePlayer = () => {
+    const player = getPlayer();
     if (player) {
       const SEC_IN_MS = 1000.0;
 
@@ -125,7 +164,7 @@
       return;
     }
 
-    if (!hookSocket(handler.ws_socket)) {
+    if (!hookSocket()) {
       setTimeout(() => hookSocketOrRetry(count + 1), count * 1000);
     }
   };
@@ -141,20 +180,25 @@
       return;
     }
 
-    if (!disposePlayer(jsplayer)) {
+    if (!disposePlayer()) {
       setTimeout(() => disposePlayerOrRetry(count + 1), count * 1000);
     }
   };
 
-  if (defchatSettings &&
-      defchatSettings.handler &&
-      defchatSettings.handler.room) {
-    disposePlayerOrRetry();
-    hookSocketOrRetry();
-  } else {
-    console.debug('room is probably offline');
-  }
+  /**
+   * Main call.
+   */
+  const main = () => {
+    reply('init', getSettings());
 
-  reply('init', getSettings(defchatSettings));
+    if (getRoomName()) {
+      disposePlayerOrRetry();
+      hookSocketOrRetry();
+    } else {
+      console.debug('room is probably offline');
+    }
+  };
 
-})(window.ws_handler, window.defchat_settings, window.jsplayer);
+  main();
+
+})(window);
