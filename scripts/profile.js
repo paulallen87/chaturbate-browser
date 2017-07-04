@@ -144,10 +144,13 @@
     }
   };
 
-  if (settings.handler.room) {
+  if (settings && settings.handler && settings.handler.room) {
     disposePlayerOrRetry();
     hookSocketOrRetry();
+  } else {
+    console.debug('room is probably offline');
   }
+
   reply('init', getSettings());
 
 })(window.ws_handler, window.defchat_settings, window.jsplayer);
