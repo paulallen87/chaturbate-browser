@@ -1,6 +1,6 @@
 #/bin/bash
 
-yarn lint || exit 0;
+#yarn lint || exit 0;
 yarn test || exit 0;
 
 VERSION="$(node -p "require('./package.json').version")"
