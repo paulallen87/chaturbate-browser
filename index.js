@@ -5,7 +5,7 @@ const path = require("path");
 const querystring = require("querystring");
 const debug = require("debug")("chaturbate:browser");
 const { EventEmitter } = require("events");
-const chromeLauncher = require("lighthouse/chrome-launcher/chrome-launcher");
+const chromeLauncher = require("chrome-launcher");
 const chromeRemoteInterface = require("chrome-remote-interface");
 const { Console } = require("console");
 
